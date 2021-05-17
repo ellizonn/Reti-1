@@ -198,6 +198,7 @@ int main(int argc, char *argv[]) {
                     break;
                 }
 
+                // elimino newline sostiuendolo con \0
                 words[strlen(words)-1] = '\0';
             }
 
@@ -232,13 +233,13 @@ int main(int argc, char *argv[]) {
 
                     nWordsServer=0; // n° di parole lette dal server
                     // itero words, ovvero la serie di parole <parola1> <parola2> <parolaN>
-                    for (int i=0; words[i]!='\0'; i++) {
+                    for (int i=0; i<=strlen(words); i++) {
                         // ogni volta che incontro uno spazio, aumento il contatore nWordsServer
-                        if (words[i]==' ') nWordsServer++;
+                        if (words[i]==' ' || words[i]=='\0') nWordsServer++;
                     }
 
                     // aumento il contatore per l'ultima parola prima di \n
-                    nWordsServer++;
+                    //nWordsServer++;
 
 
                     //TODO: rimuovere
@@ -283,8 +284,8 @@ int main(int argc, char *argv[]) {
             }
 
             // caso 6d, caso 9
-            else if (nWordsClient==0) {
-                
+            else if (nWordsClient==0) {               
+
                 // se il buffer è vuoto, mando l'errore. Altrimenti calcolo l'istogramma.
                 if (strcmp(histoBuffer,"")==0) {
                     sprintf(buffer, "ERROR Non è stato possibile calcolare l'istogramma correttamente\n");

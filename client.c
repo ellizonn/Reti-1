@@ -367,7 +367,6 @@ int main(int argc, char *argv[]) {
         if (strcmp("ACK", answer)==0) {
             // salvo il n° di parole calcolate dal server
             returnStatus = sscanf(buffer, "ACK %d", &nWordsServer);
-            printf("%s", buffer);
 
             if (returnStatus!=1) {
                 fprintf(stderr, "Messaggio accettabile: ACK <numero>");
