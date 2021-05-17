@@ -118,6 +118,8 @@ int main(int argc, char *argv[]) {
         // copia di histoBuffer, utile nella sprintf per aggiungere parole e stringhe al histoBuffer
         char cpyHistoBuffer[512] = "";
 
+        char newline;
+
 
         /* wait here */
 
@@ -165,25 +167,48 @@ int main(int argc, char *argv[]) {
             }
 
             // memorizzo <Numero_parole> in nWordsClient, e <parola1> <parola2> <parolaN> in words
-            returnStatus = sscanf(buffer, "%d %[^\t\n]", &nWordsClient, words);
+            returnStatus = sscanf(buffer, "%d %[^\t]", &nWordsClient, words);
+
+            // pulisco il buffer
+            memset(buffer, 0, sizeof(buffer));
 
             if (nWordsClient==0) {
+                // se nWordsClient==0, mi aspetto che words non sia istanziata
                 if (returnStatus!=1) {
-                    fprintf(stderr, "Mandare il messaggio nel formato <Numero_parole> <parola1> <parola2> <parolaN>");
-                    exit(1);
+                    // scrivo sul buffer "ERROR <Messaggio>" in modo che il client legga correttamente il messaggio
+                    sprintf(buffer, "ERROR Per interrompere la trasmissione dati, mandare 0\n");
+                    write(simpleChildSocket, buffer, strlen(buffer));
+                    break;
                 }
             }
             else {
+                // altrimenti, mi aspetto che words sia istanziata
                 if (returnStatus!=2) {
-                    fprintf(stderr, "Mandare il messaggio nel formato <Numero_parole> <parola1> <parola2> <parolaN>");
-                    exit(1);
+                    // scrivo sul buffer "ERROR <Messaggio>" in modo che il client legga correttamente il messaggio
+                    sprintf(buffer, "ERROR Mandare il messaggio nel formato <Numero_parole> <parola1> <parola2> <parolaN>\n");
+                    write(simpleChildSocket, buffer, strlen(buffer));
+                    break;
                 }
+
+                // controllo che words termini con newline
+                if (words[strlen(words)-1] != '\n') {
+                    // scrivo sul buffer "ERROR <Messaggio>" in modo che il client legga correttamente il messaggio
+                    sprintf(buffer, "ERROR I messaggi inviati dal client devono terminare con il carattere newline\n");
+                    write(simpleChildSocket, buffer, strlen(buffer));
+                    break;
+                }
+
+                words[strlen(words)-1] = '\0';
             }
 
+            /*if (strchr(words,'\n') != strlen(words)-1) {
+                // scrivo sul buffer "ERROR <Messaggio>" in modo che il client legga correttamente il messaggio
+                sprintf(buffer, "ERROR I messaggi inviati dal client devono terminare con il carattere newline\n");
+                write(simpleChildSocket, buffer, strlen(buffer));
+                break;
+            }*/
+
             /*    PUNTO 6    */
-            
-            // pulisco il buffer
-            memset(buffer, 0, sizeof(buffer));
 
             if (nWordsClient>0) {
 
@@ -207,14 +232,16 @@ int main(int argc, char *argv[]) {
 
                     nWordsServer=0; // n° di parole lette dal server
                     // itero words, ovvero la serie di parole <parola1> <parola2> <parolaN>
-                    for (int i=0; i<strlen(words); i++) {
+                    for (int i=0; words[i]!='\0'; i++) {
                         // ogni volta che incontro uno spazio, aumento il contatore nWordsServer
-                        if (words[i]==' ' || words[i]=='\n') nWordsServer++;
+                        if (words[i]==' ') nWordsServer++;
                     }
 
-                    //TODO: rimuovere
                     // aumento il contatore per l'ultima parola prima di \n
-                    //nWordsServer++;
+                    nWordsServer++;
+
+
+                    //TODO: rimuovere
                     // pulisco il buffer
                     //memset(buffer, 0, sizeof(buffer));
 
@@ -257,7 +284,7 @@ int main(int argc, char *argv[]) {
 
             // caso 6d, caso 9
             else if (nWordsClient==0) {
-
+                
                 // se il buffer è vuoto, mando l'errore. Altrimenti calcolo l'istogramma.
                 if (strcmp(histoBuffer,"")==0) {
                     sprintf(buffer, "ERROR Non è stato possibile calcolare l'istogramma correttamente\n");

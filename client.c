@@ -116,8 +116,15 @@ int main(int argc, char *argv[]) {
      * grazie a %[^\t] memorizzo in welcomeMessage qualsiasi carattere tranne \t */
     returnStatus = sscanf(buffer, "OK %d %[^\t]", &maxWords, welcomeMessage);
 
+    // controllo che la sscanf abbia correttamente memorizzato 2 variabili
     if (returnStatus!=2) {
         fprintf(stderr, "Mandare il messaggio nel formato OK <Max Parole> <Messaggio>");
+        exit(1);
+    }
+
+    // controllo che welcomeMessage termini con newline
+    if (welcomeMessage[strlen(welcomeMessage)-1] != '\n') {
+        fprintf(stderr, "I messaggi inviati dal server devono terminare con il carattere newline\n");
         exit(1);
     }
 
@@ -350,10 +357,17 @@ int main(int argc, char *argv[]) {
             exit(1);
         }
 
+        // controllo che other termini con newline
+        if (other[strlen(other)-1] != '\n') {
+            fprintf(stderr, "I messaggi inviati dal server devono terminare con il carattere newline\n");
+            exit(1);
+        }
+
         // caso 7a, caso 8
         if (strcmp("ACK", answer)==0) {
             // salvo il n° di parole calcolate dal server
             returnStatus = sscanf(buffer, "ACK %d", &nWordsServer);
+            printf("%s", buffer);
 
             if (returnStatus!=1) {
                 fprintf(stderr, "Messaggio accettabile: ACK <numero>");
@@ -397,7 +411,11 @@ int main(int argc, char *argv[]) {
             memset(buffer, 0, sizeof(buffer));
             // aggiungo all'inizio del buffer nWordsClient
             sprintf(buffer, "%d %s\n", nWordsClient, sub);
-            //printf("%s", buffer);
+
+            //TODO: rimuovere printf("%s", buffer);
+
+            /* setto il flag per indicare che, alla prossima iterazione, devo direttamente ritrasmettere
+            al server il messaggio corretto, senza chiede una nuova stringa in input */
             correctedNAK=1;
 
             //TODO: rimuovere
@@ -441,7 +459,7 @@ int main(int argc, char *argv[]) {
             newLoop=0;
         }
         if (strcmp("ERROR", answer)==0) {
-            printf("%s", other);
+            fprintf(stderr, "%s", other);
             newLoop=0;
         }
 
