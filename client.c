@@ -6,6 +6,39 @@
 #include <string.h>
 #include <unistd.h>
 #include <arpa/inet.h>
+#include <ctype.h>
+
+/**
+ * Controlla se il messaggio è ben formato, con il corretto utilizzo di spazi e carattere newline
+ */
+void checkSpacesNewline(char *buffer) {
+    // check newline alla fine del messaggio ricevuto dal server
+    if (buffer[strlen(buffer)-1] != '\n') {
+        fprintf(stdout, "I messaggi inviati dal server devono terminare con il carattere newline\n");
+        exit(1);
+    }
+
+    // check whitespaces nel messaggio ricevuto dal server
+    /* controllo che non ci sia uno spazio eccessivo all'inizio della stringa, o più spazi
+    consecutivi all'interno, o uno spazio eccessivo alla fine della stringa */
+    // indice al primo carattere
+    int j=0;
+    // itero la stringa. i è l'indice al secondo carattere
+    for (int i=1; i<strlen(buffer); i++) {
+        j=i-1;
+        // se in j c'è uno spazio
+        if (isspace(buffer[j])) {
+            /* se j è il primo carattere (spazio eccessivo all'inizio),
+            oppure se in i=j+1 c'è uno spazio (spazi consecutivi),
+            oppure se in i=j+1 c'è newline (spazio eccessivo alla fine) */
+            if (j==0 || isspace(buffer[i]) || buffer[i]=='\n') {
+                fprintf(stdout, "Troppi spazi rilevati nel messaggio ricevuto dal server\n");
+                exit(1);
+            }
+        }
+    }
+}
+
 
 int main(int argc, char *argv[]) {
 
@@ -50,6 +83,8 @@ int main(int argc, char *argv[]) {
     char answer[5]; // variabile per memorizzare ACK / NAK / ERROR / HISTO
     char other[512]; // variabile per memorizzare la parte del messaggio successiva ad answer[5]
     char endDatachar; // char che può assumere valori 'y' (yes) o 'n' (no)
+    char whitespace1;
+    char whitespace2;
     FILE *fPtr; // puntatore a file
     struct sockaddr_in simpleServer;
 
@@ -110,21 +145,50 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "Return Status = %d \n", returnStatus);
     }
 
+    checkSpacesNewline(buffer);
+
+    /* controllo che non ci sia uno spazio eccessivo all'inizio della stringa, o più spazi
+    consecutivi all'interno. Il controllo che alla fine della striga non ci sia
+    uno spazio eccessivo è fatto successivamente */
+    // indice al primo carattere
+    /*int j=0;
+    // itero la stringa. i è l'indice al secondo carattere
+    for (int i=1; i<strlen(buffer); i++) {
+        // se in j c'è uno spazio
+        if (buffer[j]==' ') {
+            // se j è il primo carattere oppure se in i=j+1 c'è uno spazio (spazi consecutivi)
+            if (j==0 || buffer[i]==' ') {
+                fprintf(stdout, "Troppi spazi rilevati nel messaggio ricevuto dal client\n");
+                exit(1);
+            }
+        }
+        // incremento j in modo che valga i=j-1
+        j++;
+    }*/
+
+    /* controllo che alla fine della striga non ci sia uno spazio eccessivo
+    controllo la posizione strlen(buffer)-3 perché:
+        • strlen(buffer)-1 = '\n'
+        • strlen(buffer)-2 = '\0' */
+    /*if (buffer[strlen(buffer)-3] == ' ') {
+        fprintf(stdout, "Troppi spazi rilevati nel messaggio ricevuto dal client\n");
+        exit(1);
+    }*/
+
     /*    PUNTO 4    */
 
     /* memorizzo maxWords e welcomeMessage, ignoro OK
      * grazie a %[^\t] memorizzo in welcomeMessage qualsiasi carattere tranne \t */
-    returnStatus = sscanf(buffer, "OK %d %[^\t]", &maxWords, welcomeMessage);
+    returnStatus = sscanf(buffer, "OK%c%d%c%[^\t]", &whitespace1, &maxWords, &whitespace2, welcomeMessage);
 
     // controllo che la sscanf abbia correttamente memorizzato 2 variabili
-    if (returnStatus!=2) {
-        fprintf(stderr, "Mandare il messaggio nel formato OK <Max Parole> <Messaggio>");
+    if (returnStatus!=4) {
+        fprintf(stderr, "Mandare il messaggio nel formato OK <Max Parole> <Messaggio>\n");
         exit(1);
     }
-
-    // controllo che welcomeMessage termini con newline
-    if (welcomeMessage[strlen(welcomeMessage)-1] != '\n') {
-        fprintf(stderr, "I messaggi inviati dal server devono terminare con il carattere newline\n");
+    // controllo che in whitespace sia correttamente istanziato un carattere space
+    if (!(isspace(whitespace1) && isspace(whitespace2))) {
+        fprintf(stderr, "Mancanza di spazi nel messaggio ricevuto dal server\n");
         exit(1);
     }
 
@@ -267,7 +331,7 @@ int main(int argc, char *argv[]) {
                         fgets(buffer, sizeof(buffer), stdin);
                         for (int i=0; i<strlen(buffer); i++) {
                             // ogni volta che incontro uno spazio, aumento il contatore nWordsClient
-                            if (buffer[i]==' ' || buffer[i]=='\n') nWordsClient++;
+                            if (isspace(buffer[i]) || buffer[i]=='\n') nWordsClient++;
                         }
                         // quando premo invio aumento il contatore per l'ultima parola
                         //nWordsClient++;
@@ -349,19 +413,55 @@ int main(int argc, char *argv[]) {
             fprintf(stderr, "Return Status = %d \n", returnStatus);
         }
 
-        //TODO: rimuovere fprintf(stdout, "Message from server: %s", buffer);
-        returnStatus = sscanf(buffer, "%s %[^\t]", answer, other);
+        checkSpacesNewline(buffer);
 
-        if (returnStatus!=2) {
-            fprintf(stderr, "Messaggi accettabili:\n ACK <numero>\n NAK <numero>\n HISTO <numero lunghezze> <lunghezza1> <istanze1> <lunghezza2> <istanze2>\n ERROR <Messaggio>");
+        /* controllo che non ci sia uno spazio eccessivo all'inizio della stringa, o più spazi
+        consecutivi all'interno. Il controllo che alla fine della striga non ci sia
+        uno spazio eccessivo è fatto successivamente */
+        // indice al primo carattere
+        /*int j=0;
+        // itero la stringa. i è l'indice al secondo carattere
+        for (int i=1; i<strlen(buffer); i++) {
+            // se in j c'è uno spazio
+            if (buffer[j]==' ') {
+                // se j è il primo carattere oppure se in i=j+1 c'è uno spazio (spazi consecutivi)
+                if (j==0 || buffer[i]==' ') {
+                    fprintf(stdout, "Troppi spazi rilevati nel messaggio ricevuto dal client\n");
+                    exit(1);
+                }
+            }
+            // incremento j in modo che valga i=j-1
+            j++;
+        }*/
+
+        /* controllo che alla fine della striga non ci sia uno spazio eccessivo
+        controllo la posizione strlen(buffer)-3 perché:
+            • strlen(buffer)-1 = '\n'
+            • strlen(buffer)-2 = '\0' */
+        /*if (buffer[strlen(buffer)-3] == ' ') {
+            fprintf(stdout, "Troppi spazi rilevati nel messaggio ricevuto dal client\n");
+            exit(1);
+        }*/
+
+        //TODO: rimuovere fprintf(stdout, "Message from server: %s", buffer);
+        returnStatus = sscanf(buffer, "%s%c%[^\t]", answer, &whitespace1, other);
+
+        if (returnStatus!=3) {
+            fprintf(stderr, "Messaggi accettabili:\n ACK <numero>\n NAK <numero>\n HISTO <numero lunghezze> <lunghezza1> <istanze1> <lunghezza2> <istanze2>\n ERROR <Messaggio>\n");
+            exit(1);
+        }
+        if (!isspace(whitespace1)) {
+            fprintf(stderr, "Mancanza di spazi nel messaggio ricevuto dal server\n");
             exit(1);
         }
 
+        /*
         // controllo che other termini con newline
         if (other[strlen(other)-1] != '\n') {
             fprintf(stderr, "I messaggi inviati dal server devono terminare con il carattere newline\n");
             exit(1);
         }
+        */
 
         // caso 7a, caso 8
         if (strcmp("ACK", answer)==0) {
@@ -369,7 +469,7 @@ int main(int argc, char *argv[]) {
             returnStatus = sscanf(buffer, "ACK %d", &nWordsServer);
 
             if (returnStatus!=1) {
-                fprintf(stderr, "Messaggio accettabile: ACK <numero>");
+                fprintf(stderr, "Messaggio accettabile: ACK <numero>\n");
                 exit(1);
             }
 
@@ -395,7 +495,7 @@ int main(int argc, char *argv[]) {
             // itero cpyBuffer, tenendo traccia dell'indice quando finisco la decima parola (maxWords)
             for (i=0; i<strlen(cpyBuffer) && nWordsClient<maxWords; i++) {
                 // ogni volta che incontro uno spazio, aumento il contatore nWordsClient
-                if (cpyBuffer[i]==' ') nWordsClient++;
+                if (isspace(cpyBuffer[i])) nWordsClient++;
             }
             /* dichiaro una substring lunga i+1, perché newline occupa 2 caratteri
             ed i punta al primo carattere (spazio) dopo l'ultima parola */
@@ -433,7 +533,7 @@ int main(int argc, char *argv[]) {
             returnStatus = sscanf(buffer, "HISTO %d %[^\t]", &nLengths, other);
 
             if (returnStatus!=2) {
-                fprintf(stderr, "Messaggio accettabile: HISTO <numero lunghezze> <lunghezza1> <istanze1> <lunghezza2> <istanze2>");
+                fprintf(stderr, "Messaggio accettabile: HISTO <numero lunghezze> <lunghezza1> <istanze1> <lunghezza2> <istanze2>\n");
                 exit(1);
             }
 
@@ -448,7 +548,7 @@ int main(int argc, char *argv[]) {
                 histoLengths[index] = atoi(&other[j]);
                 histoInstances[index] = atoi(&other[i]);
                 if (histoLengths[index]==0 || histoInstances[index]==0) {
-                    fprintf(stderr, "Messaggio accettabile: HISTO <numero lunghezze> <lunghezza1> <istanze1> <lunghezza2> <istanze2>");
+                    fprintf(stderr, "Messaggio accettabile: HISTO <numero lunghezze> <lunghezza1> <istanze1> <lunghezza2> <istanze2>\n");
                     exit(1);
                 }
                 if (histoInstances[index]==1) fprintf(stdout, "• %d parola di lunghezza %d\n", histoInstances[index], histoLengths[index]);

@@ -6,6 +6,46 @@
 #include <string.h>
 #include <unistd.h> 
 #include <arpa/inet.h>
+#include <ctype.h>
+
+//TODO: implementare controllo lato client e server per lo spazio prima di newline
+
+/**
+ * Controlla se il messaggio è ben formato, con il corretto utilizzo di spazi e carattere newline
+ */
+int checkSpacesNewline(char *buffer, int *simpleChildSocket) {
+    // check newline alla fine del messaggio ricevuto dal client
+    if (buffer[strlen(buffer)-1] != '\n') {
+        // scrivo sul buffer "ERROR <Messaggio>" in modo che il client legga correttamente il messaggio
+        sprintf(buffer, "ERROR I messaggi inviati dal client devono terminare con il carattere newline\n");
+        write(*simpleChildSocket, buffer, strlen(buffer));
+        return 1;
+    }
+
+    // check whitespaces nel messaggio ricevuto dal client
+    /* controllo che non ci sia uno spazio eccessivo all'inizio della stringa, o più spazi
+    consecutivi all'interno, o uno spazio eccessivo alla fine della stringa */
+    // indice al primo carattere
+    int j=0;
+    // itero la stringa. i è l'indice al secondo carattere
+    for (int i=1; i<strlen(buffer); i++) {
+        j=i-1;
+        // se in j c'è uno spazio
+        if (isspace(buffer[j])) {
+            /* se j è il primo carattere (spazio eccessivo all'inizio),
+            oppure se in i=j+1 c'è uno spazio (spazi consecutivi),
+            oppure se in i=j+1 c'è newline (spazio eccessivo alla fine) */
+            if (j==0 || isspace(buffer[i]) || buffer[i]=='\n') {
+                // scrivo sul buffer "ERROR <Messaggio>" in modo che il client legga correttamente il messaggio
+                sprintf(buffer, "ERROR Troppi spazi rilevati nel messaggio ricevuto dal client\n");
+                write(*simpleChildSocket, buffer, strlen(buffer));
+                return 1;
+            }
+        }
+    }
+    return 0;
+}
+
 
 int main(int argc, char *argv[]) {
 
@@ -17,6 +57,7 @@ int main(int argc, char *argv[]) {
     char buffer[512] = "";
     char cpyBuffer[512] = ""; // copia del buffer, utile nella sprintf per aggiungere parole e stringhe al buffer
     char *errorMessage = "Il numero di parole inserite eccede il numero massimo di parole accettabili dal server";
+    char whitespace;
     struct sockaddr_in simpleServer;
 
     /*    PUNTO 1    */
@@ -118,8 +159,7 @@ int main(int argc, char *argv[]) {
         // copia di histoBuffer, utile nella sprintf per aggiungere parole e stringhe al histoBuffer
         char cpyHistoBuffer[512] = "";
 
-        char newline;
-
+        char space;
 
         /* wait here */
 
@@ -149,6 +189,8 @@ int main(int argc, char *argv[]) {
             // setto a false il flag per fare un nuovo ciclo
             newLoop=0;
 
+            int errorSpacesNewline = 0;
+
             /*    PUNTO 5    */
 
             // pulisco il buffer
@@ -166,8 +208,13 @@ int main(int argc, char *argv[]) {
                 break;
             }
 
+            errorSpacesNewline = checkSpacesNewline(buffer, &simpleChildSocket);
+
+            // se sono stati rilevati troppi spazi, interrompo il do while
+            if (errorSpacesNewline!=0) break;
+
             // memorizzo <Numero_parole> in nWordsClient, e <parola1> <parola2> <parolaN> in words
-            returnStatus = sscanf(buffer, "%d %[^\t]", &nWordsClient, words);
+            returnStatus = sscanf(buffer, "%d%c%[^\t\n]", &nWordsClient, &whitespace, words);
 
             // pulisco il buffer
             memset(buffer, 0, sizeof(buffer));
@@ -182,14 +229,22 @@ int main(int argc, char *argv[]) {
                 }
             }
             else {
-                // altrimenti, mi aspetto che words sia istanziata
-                if (returnStatus!=2) {
+                // altrimenti, mi aspetto che whitespace e words siano istanziate
+                if (returnStatus!=3) {
                     // scrivo sul buffer "ERROR <Messaggio>" in modo che il client legga correttamente il messaggio
                     sprintf(buffer, "ERROR Mandare il messaggio nel formato <Numero_parole> <parola1> <parola2> <parolaN>\n");
                     write(simpleChildSocket, buffer, strlen(buffer));
                     break;
                 }
+                // controllo che in whitespace sia correttamente istanziato un carattere space
+                if (!isspace(whitespace)) {
+                    // scrivo sul buffer "ERROR <Messaggio>" in modo che il client legga correttamente il messaggio
+                    sprintf(buffer, "ERROR Mandare il messaggio nel formato <Numero_parole> <parola1> <parola2> <parolaN>\n\n");
+                    write(simpleChildSocket, buffer, strlen(buffer));
+                    break;
+                }
 
+                /*
                 // controllo che words termini con newline
                 if (words[strlen(words)-1] != '\n') {
                     // scrivo sul buffer "ERROR <Messaggio>" in modo che il client legga correttamente il messaggio
@@ -200,14 +255,8 @@ int main(int argc, char *argv[]) {
 
                 // elimino newline sostiuendolo con \0
                 words[strlen(words)-1] = '\0';
+                */
             }
-
-            /*if (strchr(words,'\n') != strlen(words)-1) {
-                // scrivo sul buffer "ERROR <Messaggio>" in modo che il client legga correttamente il messaggio
-                sprintf(buffer, "ERROR I messaggi inviati dal client devono terminare con il carattere newline\n");
-                write(simpleChildSocket, buffer, strlen(buffer));
-                break;
-            }*/
 
             /*    PUNTO 6    */
 
@@ -215,41 +264,53 @@ int main(int argc, char *argv[]) {
 
                 // TODO: rimuovere memset buffer commentati di seguito
                 
-                // caso 6a, caso 7
+                // caso 6a
                 if (nWordsClient<=maxWords) {
-
-                    // se histoBuffer è vuoto, ovvero words è la prima stringa mandata dal server
-                    if (strcmp("",histoBuffer)==0) {
-                        // aggiungo words a histoBuffer
-                        sprintf(histoBuffer, "%s", words);
-                    }
-                    // altrimenti, se in histoBuffer sono già state inserite una o più stringhe
-                    else {
-                        // copio histoBuffer in cpyHistoBuffer
-                        strcpy(cpyHistoBuffer, histoBuffer);
-                        // inserisco le stringhe già presenti nel histoBuffer e la nuova stringa
-                        sprintf(histoBuffer, "%s %s", cpyHistoBuffer, words);
-                    }
 
                     nWordsServer=0; // n° di parole lette dal server
                     // itero words, ovvero la serie di parole <parola1> <parola2> <parolaN>
                     for (int i=0; i<=strlen(words); i++) {
                         // ogni volta che incontro uno spazio, aumento il contatore nWordsServer
-                        if (words[i]==' ' || words[i]=='\0') nWordsServer++;
+                        if (isspace(words[i]) || words[i]=='\0') nWordsServer++;
                     }
 
-                    // aumento il contatore per l'ultima parola prima di \n
-                    //nWordsServer++;
+                    // caso 6a i, caso 7
+                    if (nWordsServer == nWordsClient) {
 
+                        // se histoBuffer è vuoto, ovvero words è la prima stringa mandata dal server
+                        if (strcmp("",histoBuffer)==0) {
+                            // aggiungo words a histoBuffer
+                            sprintf(histoBuffer, "%s", words);
+                        }
+                        // altrimenti, se in histoBuffer sono già state inserite una o più stringhe
+                        else {
+                            // copio histoBuffer in cpyHistoBuffer
+                            strcpy(cpyHistoBuffer, histoBuffer);
+                            // inserisco le stringhe già presenti nel histoBuffer e la nuova stringa
+                            sprintf(histoBuffer, "%s %s", cpyHistoBuffer, words);
+                        }
 
-                    //TODO: rimuovere
-                    // pulisco il buffer
-                    //memset(buffer, 0, sizeof(buffer));
+                        // aumento il contatore per l'ultima parola prima di \n
+                        //nWordsServer++;
 
-                    // scrivo nel buffer il messaggio nel formato "ACK <numero_parole_lette>"
-                    sprintf(buffer, "ACK %d\n", nWordsServer);
-                    // faccio ripartire il ciclo
-                    newLoop=1;
+                        //TODO: rimuovere
+                        // pulisco il buffer
+                        //memset(buffer, 0, sizeof(buffer));
+
+                        // scrivo nel buffer il messaggio nel formato "ACK <numero_parole_lette>"
+                        sprintf(buffer, "ACK %d\n", nWordsServer);
+                        // faccio ripartire il ciclo
+                        newLoop=1;
+
+                    }
+                    // caso 6a ii, caso 8
+                    else {
+                        // scrivo nel buffer il messaggio nel formato "ERROR <Messaggio>"
+                        sprintf(buffer, "ERROR Il numero di parole estratte dal server non corrisponde a quello indicato\n");
+                        // esco dal ciclo
+                        newLoop=0;
+                    }
+
                 }
                 // caso 6b, caso 7
                 else {
@@ -284,7 +345,9 @@ int main(int argc, char *argv[]) {
             }
 
             // caso 6d, caso 9
-            else if (nWordsClient==0) {               
+            else if (nWordsClient==0) { 
+
+                //printf("%s\n", histoBuffer);              
 
                 // se il buffer è vuoto, mando l'errore. Altrimenti calcolo l'istogramma.
                 if (strcmp(histoBuffer,"")==0) {
@@ -305,7 +368,7 @@ int main(int argc, char *argv[]) {
                     // itero tutto histoBuffer
                     for (i=0; i<strlen(histoBuffer)/*histoBuffer[i]!='\0'*/; i++) {
                         // quando incontro lo spazio alla fine di una parola
-                        if (histoBuffer[i]==' ') {
+                        if (isspace(histoBuffer[i]) /*histoBuffer[i]==' '*/ ) {
                             /* se la lunghezza della parola, calcolata con (i-lastIndex),
                             è maggiore di 12 (massimo intervallo di lunghezza) */
                             if ((i-lastIndex)>12) {
@@ -376,4 +439,3 @@ int main(int argc, char *argv[]) {
     return 0;
 
 }
-
