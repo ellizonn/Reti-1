@@ -62,11 +62,11 @@ int main(int argc, char *argv[]) {
     // contatore del numero di lunghezze diverse (primo valore dell'output HISTO)
     int nLengths = 0;
 
-    // vettore per memorizzare le lunghezze dell'istogramma
-    int histoLengths[12] = {0};
+    // variabile per memorizzare le singole lunghezze dell'istogramma
+    int histoLength = 0;
 
-    // vettore per memorizzare le istanze dell'istogramma
-    int histoInstances[12] = {0};
+    // varibile per memorizzare le singole istanze dell'istogramma
+    int histoInstance = 0;
 
     /* flag per gestire il caso in cui, ricevuto NAK, ritrasmetto il contenuto
     del messaggio errato, rispettando i requisiti del server.
@@ -83,8 +83,9 @@ int main(int argc, char *argv[]) {
     char answer[5]; // variabile per memorizzare ACK / NAK / ERROR / HISTO
     char other[512]; // variabile per memorizzare la parte del messaggio successiva ad answer[5]
     char endDatachar; // char che può assumere valori 'y' (yes) o 'n' (no)
-    char whitespace1;
-    char whitespace2;
+    char whitespace1; // variabile per memorizzare il carattere whitespace durante la sscanf dei messaggi del server
+    char whitespace2; // variabile per memorizzare il carattere whitespace durante la sscanf dei messaggi del server
+    char *token; // variabile per memorizzare il token restituito dalla strtok
     FILE *fPtr; // puntatore a file
     struct sockaddr_in simpleServer;
 
@@ -147,41 +148,13 @@ int main(int argc, char *argv[]) {
 
     checkSpacesNewline(buffer);
 
-    /* controllo che non ci sia uno spazio eccessivo all'inizio della stringa, o più spazi
-    consecutivi all'interno. Il controllo che alla fine della striga non ci sia
-    uno spazio eccessivo è fatto successivamente */
-    // indice al primo carattere
-    /*int j=0;
-    // itero la stringa. i è l'indice al secondo carattere
-    for (int i=1; i<strlen(buffer); i++) {
-        // se in j c'è uno spazio
-        if (buffer[j]==' ') {
-            // se j è il primo carattere oppure se in i=j+1 c'è uno spazio (spazi consecutivi)
-            if (j==0 || buffer[i]==' ') {
-                fprintf(stdout, "Troppi spazi rilevati nel messaggio ricevuto dal client\n");
-                exit(1);
-            }
-        }
-        // incremento j in modo che valga i=j-1
-        j++;
-    }*/
-
-    /* controllo che alla fine della striga non ci sia uno spazio eccessivo
-    controllo la posizione strlen(buffer)-3 perché:
-        • strlen(buffer)-1 = '\n'
-        • strlen(buffer)-2 = '\0' */
-    /*if (buffer[strlen(buffer)-3] == ' ') {
-        fprintf(stdout, "Troppi spazi rilevati nel messaggio ricevuto dal client\n");
-        exit(1);
-    }*/
-
     /*    PUNTO 4    */
 
     /* memorizzo maxWords e welcomeMessage, ignoro OK
      * grazie a %[^\t] memorizzo in welcomeMessage qualsiasi carattere tranne \t */
     returnStatus = sscanf(buffer, "OK%c%d%c%[^\t]", &whitespace1, &maxWords, &whitespace2, welcomeMessage);
 
-    // controllo che la sscanf abbia correttamente memorizzato 2 variabili
+    // controllo che la sscanf abbia correttamente memorizzato 4 variabili
     if (returnStatus!=4) {
         fprintf(stderr, "Mandare il messaggio nel formato OK <Max Parole> <Messaggio>\n");
         exit(1);
@@ -197,27 +170,17 @@ int main(int argc, char *argv[]) {
 
     do {
 
-        // se 
+        // Se correctedNAK=0, procedo normalmente (andare alla definizione della varibile per maggiori info)
         if (correctedNAK==0) {
 
             // se entro nel ciclo di nuovo, chiedo se si hanno ancora dati da trasmettere
             if (newLoop!=0) {
-                //TODO: rimuovere
-
-                //endDatachar=' ';
-                printf("Si desidera trasmettere altri dati?\nInserire 'y' per accettare e continuare, oppure 'n' per declinare e terminare: ");
-                //scanf("%d", &endData);
+                fprintf(stdout, "Si desidera trasmettere altri dati?\nInserire 'y' per accettare e continuare, oppure 'n' per declinare e terminare: ");
                 scanf("%c%*c", &endDatachar);
-                /*getchar();
-                endDatachar = getchar();
-                getchar();*/
-                /*if (endDatachar!='y' && endDatachar!='n') {
-                    fprintf(stderr, "Input indefinito. Inserire 'y' o 'n'\n");
-                }*/
+
                 if (endDatachar=='y') endData=0;
                 else if (endDatachar=='n') {
                     endData=1;
-                    //TODO: rimuovere printf("Spedisco '0' al server\n");
                 }
                 else {
                     fprintf(stderr, "Input indefinito. Inserire 'y' o 'n'\n");
@@ -231,48 +194,23 @@ int main(int argc, char *argv[]) {
             if (endData==1) {
                 sprintf(buffer, "%d\n", 0);
                 write(simpleSocket, buffer, strlen(buffer));
-
-                //TODO: rimuovere
-                //break;
-    /*
-                memset(buffer, 0, sizeof(buffer));
-                returnStatus = read(simpleSocket, buffer, sizeof(buffer));
-
-                if ( returnStatus <= 0 ) {
-                    fprintf(stderr, "Return Status = %d \n", returnStatus);
-                }
-
-                fprintf(stdout, "Message from server: %s", buffer);
-                sscanf(buffer, "%s %[^\t]", answer, other);
-
-                if (strcmp("HISTO", answer)==0) {
-                    printf("%s", other);
-                    //newLoop=0;
-                    break;
-                }
-                if (strcmp("ERROR", answer)==0) {
-                    printf("%s", other);
-                    //newLoop=0;
-                    break;
-                }
-    */
             }
             else {
                 
                 /*    PUNTO 5    */
 
-                printf("Metodi di input disponibili\n");
-                printf(" 1. Tastiera\n 2. File\nInserire 1 o 2 e premere invio: ");
+                fprintf(stdout, "Metodi di input disponibili\n");
+                fprintf(stdout, " 1. Tastiera\n 2. File\nInserire 1 o 2 e premere invio: ");
                 scanf("%d%*c", &inputMethod);
                 if (inputMethod!=1 && inputMethod!=2) {
                     fprintf(stderr, "Input indefinito. Inserire 1 o 2\n");
                     exit(1);        
                 }
 
-                printf("\nCriterio di inserimento parole:\n");
-                printf(" 1. Una alla volta [parola invio parola invio]\n");
-                printf(" 2. Tutte insieme [parola parola parola invio]\n");
-                printf("Inserire 1 o 2 e premere invio: ");   
+                fprintf(stdout, "\nCriterio di inserimento parole:\n");
+                fprintf(stdout, " 1. Una alla volta [parola invio parola invio]\n");
+                fprintf(stdout, " 2. Tutte insieme [parola parola parola invio]\n");
+                fprintf(stdout, "Inserire 1 o 2 e premere invio: ");   
                 scanf("%d%*c", &inputParameter);
                 if (inputParameter!=1 && inputParameter!=2) {
                     fprintf(stderr, "Input indefinito. Inserire 1 o 2\n");
@@ -286,7 +224,7 @@ int main(int argc, char *argv[]) {
                         fprintf(stdout, "Al termine, digitare <STOP> e premere invio\n");
 
                         do {
-                            printf("Inserire parola: ");
+                            fprintf(stdout, "Inserire parola: ");
                             // grazie a "%s%*c" consumo con %*c il carattere newline
                             scanf("%s%*c", word);
                             // incremento il contatore
@@ -306,42 +244,27 @@ int main(int argc, char *argv[]) {
 
                         // decremento il contatore, che considera anche la parola STOP
                         nWordsClient--;
-
-                        //TODO: rimuovere
-                        /*printf("Inserire n° di parole: ");
-                        scanf("%d", &nWordsClient);
-                        for (int i=0; i<nWordsClient; i++) {
-                            printf("Inserire parola: ");
-                            scanf("%s", word);
-                            strcpy(cpyBuffer, buffer);
-                            // se è la prima parola, la aggiungo al buffer
-                            if (i==0) sprintf(buffer, "%s", word);
-                            // altrimenti, devo copiare anche le parole già presenti sul buffer
-                            else sprintf(buffer, "%s %s", cpyBuffer, word);
-                        }
-                        getchar();
-                        strcpy(cpyBuffer, buffer);
-                        // aggiungo \n alla fine
-                        sprintf(buffer, "%s\n", cpyBuffer);*/
                     }
                     else {
-                        //TODO: rimuovere
-                        //getchar();
-                        printf("Inserire le parole separate da uno spazio. Premere invio alla fine:\n");
+                        fprintf(stdout, "Inserire le parole separate da uno spazio. Premere invio alla fine:\n");
                         fgets(buffer, sizeof(buffer), stdin);
                         for (int i=0; i<strlen(buffer); i++) {
-                            // ogni volta che incontro uno spazio, aumento il contatore nWordsClient
+                            /* ogni volta che incontro uno spazio, o il carattere finale newline,
+                               aumento il contatore nWordsClient */
                             if (isspace(buffer[i]) || buffer[i]=='\n') nWordsClient++;
                         }
-                        // quando premo invio aumento il contatore per l'ultima parola
-                        //nWordsClient++;
                     }
                 }
                 else {
-                    printf("Inserire nome file presente della stessa directory: ");
+                    fprintf(stdout, "Inserire nome file presente della stessa directory: ");
                     scanf("%s%*c", fileName);
-                    //getchar();
-                    fPtr = fopen(fileName, "r"); 
+
+                    fPtr = fopen(fileName, "r");
+
+                    if (fPtr==NULL) {
+                        fprintf(stderr, "Impossibile accedere al file\n");
+                        exit(1);
+                    }
 
                     // finché non viene raggiunta la fine del file
                     while (!feof(fPtr)) {
@@ -356,10 +279,10 @@ int main(int argc, char *argv[]) {
                             }             
                         }
                         else {
-                            if (nWordsClient==0) fscanf(fPtr, "%s ", buffer);
+                            if (nWordsClient==0) fscanf(fPtr, "%s%*c", buffer);
                             else {
                                 strcpy(cpyBuffer, buffer);
-                                fscanf(fPtr, "%s ", word);
+                                fscanf(fPtr, "%s%*c", word);
                                 sprintf(buffer, "%s %s", cpyBuffer, word);
                             }
                         }
@@ -372,26 +295,20 @@ int main(int argc, char *argv[]) {
 
                     fclose(fPtr);
                 }
-                //TODO: rimuovere
-            /*
-                if (nWordsClient > maxWords) {
-                    fprintf(stderr, "Il numero di parole inserite eccede il numero massimo di parole accettabili da server\n");
-                    exit(1);
-                }
-            */
+
                 // copio il contenuto del buffer in cpyBuffer
                 strcpy(cpyBuffer, buffer);
                 // aggiungo all'inizio del buffer nWordsClient
                 sprintf(buffer, "%d %s", nWordsClient, cpyBuffer);
             
-                //TODO: rimuovere printf("Buffer: %s", buffer);
-
                 /*    PUNTO 6    */
 
                 // mando al server il messaggio nel formato "<Numero_parole> <parola1> <parola2> <parolaN>"
                 write(simpleSocket, buffer, strlen(buffer));
             }
         }
+        /* se ho ricevuto NAK alla scorsa iterazione, setto correctedNAK=1 e non chiedo l'input all'utente
+        perché ho in memoria nel buffer il NAK corretto, che spedisco al server. */
         else {
             /*    PUNTO 6    */
 
@@ -407,7 +324,6 @@ int main(int argc, char *argv[]) {
         memset(buffer, 0, sizeof(buffer));
         // leggo il messaggio del server contenente ACK / NAK / ERROR / HISTO
         returnStatus = read(simpleSocket, buffer, sizeof(buffer));
-        //TODO: rimuovere printf("%s", buffer);
 
         if ( returnStatus <= 0 ) {
             fprintf(stderr, "Return Status = %d \n", returnStatus);
@@ -415,35 +331,6 @@ int main(int argc, char *argv[]) {
 
         checkSpacesNewline(buffer);
 
-        /* controllo che non ci sia uno spazio eccessivo all'inizio della stringa, o più spazi
-        consecutivi all'interno. Il controllo che alla fine della striga non ci sia
-        uno spazio eccessivo è fatto successivamente */
-        // indice al primo carattere
-        /*int j=0;
-        // itero la stringa. i è l'indice al secondo carattere
-        for (int i=1; i<strlen(buffer); i++) {
-            // se in j c'è uno spazio
-            if (buffer[j]==' ') {
-                // se j è il primo carattere oppure se in i=j+1 c'è uno spazio (spazi consecutivi)
-                if (j==0 || buffer[i]==' ') {
-                    fprintf(stdout, "Troppi spazi rilevati nel messaggio ricevuto dal client\n");
-                    exit(1);
-                }
-            }
-            // incremento j in modo che valga i=j-1
-            j++;
-        }*/
-
-        /* controllo che alla fine della striga non ci sia uno spazio eccessivo
-        controllo la posizione strlen(buffer)-3 perché:
-            • strlen(buffer)-1 = '\n'
-            • strlen(buffer)-2 = '\0' */
-        /*if (buffer[strlen(buffer)-3] == ' ') {
-            fprintf(stdout, "Troppi spazi rilevati nel messaggio ricevuto dal client\n");
-            exit(1);
-        }*/
-
-        //TODO: rimuovere fprintf(stdout, "Message from server: %s", buffer);
         returnStatus = sscanf(buffer, "%s%c%[^\t]", answer, &whitespace1, other);
 
         if (returnStatus!=3) {
@@ -455,18 +342,10 @@ int main(int argc, char *argv[]) {
             exit(1);
         }
 
-        /*
-        // controllo che other termini con newline
-        if (other[strlen(other)-1] != '\n') {
-            fprintf(stderr, "I messaggi inviati dal server devono terminare con il carattere newline\n");
-            exit(1);
-        }
-        */
-
         // caso 7a, caso 8
         if (strcmp("ACK", answer)==0) {
             // salvo il n° di parole calcolate dal server
-            returnStatus = sscanf(buffer, "ACK %d", &nWordsServer);
+            returnStatus = sscanf(other, "%d", &nWordsServer);
 
             if (returnStatus!=1) {
                 fprintf(stderr, "Messaggio accettabile: ACK <numero>\n");
@@ -482,6 +361,7 @@ int main(int argc, char *argv[]) {
                 fprintf(stderr, "Il numero di dati ricevuti è diverso dal numero di dati trasmessi\n");
             }
         }
+
         // caso 7b, caso 10
         /* ritrasmetto il contenuto del messaggio errato, rispettando i requisiti del server,
         ovvero ottenendo una substringa di lunghezza maxWords */
@@ -501,62 +381,65 @@ int main(int argc, char *argv[]) {
             ed i punta al primo carattere (spazio) dopo l'ultima parola */
             char sub[512];
 
-            // copio in sub la substringa di cpyBuffer dall'indice 0 ad i
-            memcpy(sub, cpyBuffer, i);
-
-            //TODO: rimuovere printf("%d = %lu\n", i+1, strlen(sub));
+            /* copio in sub la substringa di cpyBuffer dall'indice 0 ad i-1
+            (per escludere l'ultimo spazio) dopo l'ultima parola */
+            memcpy(sub, cpyBuffer, i-1);
 
             // pulisco il buffer
             memset(buffer, 0, sizeof(buffer));
             // aggiungo all'inizio del buffer nWordsClient
             sprintf(buffer, "%d %s\n", nWordsClient, sub);
 
-            //TODO: rimuovere printf("%s", buffer);
-
             /* setto il flag per indicare che, alla prossima iterazione, devo direttamente ritrasmettere
             al server il messaggio corretto, senza chiede una nuova stringa in input */
             correctedNAK=1;
-
-            //TODO: rimuovere
-            /*
-            int j=0;
-            // salvo in sub il contenuto di cpyBuffer, tenendo conto i requisiti del server (maxWords)
-            for (j=0; j<nWordsClient; j++) {
-                sub[j] = cpyBuffer[j];
-            }
-            // aggiungo \n alla fine di sub
-            sub[j] = '\n';
-            */
         }
+
+        /*    PUNTO 11    */
+
         if (strcmp("HISTO", answer)==0) {
             // memorizzo <numero lunghezze> in nLengths, e <lunghezza1> <istanze1> <lunghezza2> <istanze2> in other
-            returnStatus = sscanf(buffer, "HISTO %d %[^\t]", &nLengths, other);
+            returnStatus = sscanf(buffer, "HISTO%c%d%c%[^\t]", &whitespace1, &nLengths, &whitespace2, other);
 
-            if (returnStatus!=2) {
+            if (returnStatus!=4) {
                 fprintf(stderr, "Messaggio accettabile: HISTO <numero lunghezze> <lunghezza1> <istanze1> <lunghezza2> <istanze2>\n");
                 exit(1);
             }
+            if (!(isspace(whitespace1) && isspace(whitespace2))) {
+                fprintf(stderr, "Mancanza di spazi nel messaggio ricevuto dal server\n");
+                exit(1);
+            }
 
-            fprintf(stdout, "Ho ricevuto dal server %d lunghezze diverse: \n", nLengths);
-            // contatore posizioni histoLengths e histoInstances
-            int index=0;
-            // contatore che itera <lunghezza1> <lunghezza2> ...
-            int j=0;
-            // i è il contatore che itera <istanze1> <istanze2> ...
-            for (int i=2; i<strlen(other); i+=4) {
-                j=i-2;
-                histoLengths[index] = atoi(&other[j]);
-                histoInstances[index] = atoi(&other[i]);
-                if (histoLengths[index]==0 || histoInstances[index]==0) {
-                    fprintf(stderr, "Messaggio accettabile: HISTO <numero lunghezze> <lunghezza1> <istanze1> <lunghezza2> <istanze2>\n");
+            if (nLengths==1) {
+                fprintf(stdout, "Ho ricevuto dal server %d sola lunghezza diversa:\n", nLengths);
+            }
+            else fprintf(stdout, "Ho ricevuto dal server %d lunghezze diverse:\n", nLengths);
+            
+            token = strtok(buffer, " "); // scarto HISTO
+            token = strtok(NULL, " "); // scarto nLengths
+            
+            for (int i=0; i<nLengths; i++) {
+                // estraggo <lunghezza_i> e la memorizzo in histoLength
+                token = strtok(NULL, " ");
+                histoLength = atoi(token);
+                // estraggo <istanza_i> e la memorizzo in histoInstance
+                token = strtok(NULL, " ");
+                histoInstance = atoi(token);
+
+                if (histoLength==0 || histoInstance==0) {
+                    fprintf(stderr, "Messaggio accettabile: HISTO <numero lunghezze> <lunghezza1> <istanze1> <lunghezza2> <istanze2>");
                     exit(1);
                 }
-                if (histoInstances[index]==1) fprintf(stdout, "• %d parola di lunghezza %d\n", histoInstances[index], histoLengths[index]);
-                else fprintf(stdout, "• %d parole di lunghezza %d\n", histoInstances[index], histoLengths[index]);
-                index++;
+
+                if (histoInstance==1) fprintf(stdout, "• %d parola di lunghezza %d\n", histoInstance, histoLength);
+                else fprintf(stdout, "• %d parole di lunghezza %d\n", histoInstance, histoLength);
             }
+
             newLoop=0;
         }
+
+        /*    PUNTO 12    */
+
         if (strcmp("ERROR", answer)==0) {
             fprintf(stderr, "%s", other);
             newLoop=0;
@@ -568,4 +451,3 @@ int main(int argc, char *argv[]) {
     return 0;
 
 }
-
