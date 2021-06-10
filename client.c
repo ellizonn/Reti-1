@@ -9,6 +9,10 @@
 #include <ctype.h>
 
 /**
+ * @author: Elia Marisio
+ */
+
+/**
  * Controlla se il messaggio è ben formato, con il corretto utilizzo di spazi e carattere newline
  */
 void checkSpacesNewline(char *buffer) {
